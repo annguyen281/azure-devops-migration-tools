@@ -2,7 +2,7 @@
   "profiles": {
     "execute": {
       "commandName": "Project",
-      "commandLineArgs": "execute -c \"C:\\SwissTiming\\src\\Architecture\\Overview\\docs\\devops-cloudmigration\\workitems-configurations\\STDK\\configuration-stdk-4.json\"",
+      "commandLineArgs": "execute -c configuration.json",
       "environmentVariables": {
         "SourcePat": "%SourcePat%;TargetPat=%TargetPat%"
       }

@@ -4,8 +4,8 @@
   "workaroundForQuerySOAPBugEnabled": false,
   "Source": {
     "$type": "TfsTeamProjectConfig",
-    "Collection": "https://dev.azure.com/nkdagility-preview/",
-    "Project": "migrationSource1",
+    "Collection": "https://tfs.amaris.com/tfs/O2F-IT%20Projects/",
+    "Project": "common services",
     "ReflectedWorkItemIDFieldName": "Custom.ReflectedWorkItemId",
     "AuthenticationMode": "Prompt",
     "AllowCrossProjectLinking": false,
@@ -17,9 +17,9 @@
   },
   "Target": {
     "$type": "TfsTeamProjectConfig",
-    "Collection": "https://dev.azure.com/nkdagility-preview/",
-    "Project": "migrationTarget1",
-    "ReflectedWorkItemIDFieldName": "nkdScrum.ReflectedWorkItemId",
+    "Collection": "https://dev.azure.com/mantu/",
+    "Project": "provisioning",
+    "ReflectedWorkItemIDFieldName": "ReflectedWorkItemId",
     "AuthenticationMode": "Prompt",
     "AllowCrossProjectLinking": false,
     "PersonalAccessToken": "qosss7crwz3vie4fupzpaafjndoy6g6ulgkzhoxtmjgicv2lqjyq",
@@ -34,6 +34,13 @@
       "WorkItemTypeName": "*",
       "toSkip": 3,
       "timeTravel": 1
+    },
+    {
+      "$type": "FieldtoFieldMultiMapConfig",
+      "WorkItemTypeName": "*",
+      "SourceToTargetMappings": {
+        "Mantu.RootCause": "Custom.RootCauses"
+      }
     }
   ],
   "WorkItemTypeDefinition": {
@@ -43,7 +50,7 @@
   "Processors": [
     {
       "$type": "WorkItemDeleteConfig",
-      "Enabled": true,
+      "Enabled": false,
       "WIQLQueryBit": "AND [System.WorkItemType] NOT IN ('Test Suite', 'Test Plan')",
       "WIQLOrderBit": "[System.ChangedDate] desc"
     },
@@ -78,7 +85,7 @@
       "UpdateCreatedBy": true,
       "BuildFieldTable": false,
       "AppendMigrationToolSignatureFooter": false,
-      "WIQLQueryBit": "AND [System.WorkItemType] NOT IN ('Test Suite', 'Test Plan')",
+      "WIQLQueryBit": "AND [System.AreaPath] UNDER 'Common Services\\Provisioning' AND [System.WorkItemType] NOT IN ('Test Suite', 'Test Plan') AND [System.CreatedDate] >= '01/01/2022'",
       "WIQLOrderBit": "[System.ChangedDate] desc",
       "Enabled": true,
       "LinkMigration": true,
@@ -91,7 +98,17 @@
       "PauseAfterEachWorkItem": false,
       "AttachmentMaxSize": 480000000,
       "CollapseRevisions": false,
-      "LinkMigrationSaveEachAsAdded": true
+      "LinkMigrationSaveEachAsAdded": true,
+      "IterationMaps": {
+        "^Common Services\\\\Provisioning": "Provisioning"
+      },
+      "AreaMaps": {
+        "^Common Services\\\\Provisioning": "Provisioning\\"
+      },
+      "NodeStructureEnricherEnabled": true,
+      "NodeBasePaths": [ "Provisioning" ],
+      "UseCommonNodeStructureEnricherConfig": false,
+      "GenerateMigrationComment": false
     }
   ]
 }
