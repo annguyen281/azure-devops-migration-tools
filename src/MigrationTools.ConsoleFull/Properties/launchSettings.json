@@ -3,9 +3,6 @@
     "execute": {
       "commandName": "Project",
       "commandLineArgs": "execute -c configuration.json",
-      "environmentVariables": {
-        "SourcePat": "%SourcePat%;TargetPat=%TargetPat%"
-      }
     },
     "init": {
       "commandName": "Project",
