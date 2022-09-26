@@ -112,13 +112,13 @@
         "Name": "Source",
         "AccessToken": "qosss7crwz3vie4fupzpaafjndoy6g6ulgkzhoxtmjgicv2lqjyq",
         "Query": {
-          "Query": "SELECT [System.Id], [System.Tags] FROM WorkItems WHERE [System.TeamProject] = @TeamProject AND [System.WorkItemType] NOT IN ('Test Suite', 'Test Plan') ORDER BY [System.ChangedDate] desc"
+          "Query": "SELECT [System.Id], [System.Tags] FROM WorkItems WHERE [System.TeamProject] = @TeamProject AND [System.WorkItemType] NOT IN ('Test Suite', 'Test Plan') ORDER BY [System.ChangedDate] desc",
           "Parameters": {
             "TeamProject": "MigrationSource1"
           }
         },
-        "Organisation": "https://dev.azure.com/nkdagility-preview/",
-        "Project": "migrationSource1",
+        "Organisation": "https://tfs.amaris.com/tfs/O2F-IT%20Projects",
+        "Project": "front end",
         "ReflectedWorkItemIdField": "Custom.ReflectedWorkItemId",
         "AuthenticationMode": "Prompt",
         "AllowCrossProjectLinking": false,
@@ -134,8 +134,8 @@
         "Query": {
           "Query": "SELECT [System.Id], [System.Tags] FROM WorkItems WHERE [System.TeamProject] = @TeamProject AND [System.WorkItemType] NOT IN ('Test Suite', 'Test Plan') ORDER BY [System.ChangedDate] desc"
         },
-        "Organisation": "https://dev.azure.com/nkdagility-preview/",
-        "Project": "migrationTarget1",
+        "Organisation": "https://dev.azure.com/mantu",
+        "Project": "front end",
         "ReflectedWorkItemIdField": "nkdScrum.ReflectedWorkItemId",
         "AuthenticationMode": "Prompt",
         "AllowCrossProjectLinking": false,
@@ -148,10 +148,10 @@
   },
   "Source": {
     "$type": "TfsTeamProjectConfig",
-    "Collection": "https://dev.azure.com/nkdagility-preview/",
-    "Project": "migrationSource1",
+    "Collection": "https://tfs.amaris.com/tfs/O2F-IT%20Projects",
+    "Project": "front end",
     "ReflectedWorkItemIDFieldName": "Custom.ReflectedWorkItemId",
-    "AuthenticationMode": "Prompt",
+    "AuthenticationMode": "Windows",
     "AllowCrossProjectLinking": false,
     "PersonalAccessToken": "qosss7crwz3vie4fupzpaafjndoy6g6ulgkzhoxtmjgicv2lqjyq",
     "LanguageMaps": {
@@ -161,8 +161,8 @@
   },
   "Target": {
     "$type": "TfsTeamProjectConfig",
-    "Collection": "https://dev.azure.com/nkdagility-preview/",
-    "Project": "migrationTarget1",
+    "Collection": "https://dev.azure.com/mantu",
+    "Project": "front end",
     "ReflectedWorkItemIDFieldName": "nkdScrum.ReflectedWorkItemId",
     "AuthenticationMode": "Prompt",
     "AllowCrossProjectLinking": false,
