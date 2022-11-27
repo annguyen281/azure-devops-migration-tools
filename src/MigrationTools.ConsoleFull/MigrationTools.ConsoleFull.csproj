@@ -9,12 +9,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="..\..\configuration.json" Link="configuration.json">
+    <None Include="..\..\configuration.json" Link="configuration.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="..\..\configuration2.json" Link="configuration2.json">
+    </None>
+    <None Include="..\..\configuration2.json" Link="configuration2.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
+    </None>
   </ItemGroup>
 
   <ItemGroup>
