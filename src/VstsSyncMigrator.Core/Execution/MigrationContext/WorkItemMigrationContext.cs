@@ -104,6 +104,8 @@ namespace VstsSyncMigrator.Engine
             }
 
             _revisionManager.Configure(new TfsRevisionManagerOptions() { Enabled = true, MaxRevisions = _config.MaxRevisions, ReplayRevisions = _config.ReplayRevisions });
+
+            _workItemLinkEnricher.Configure(_config.LinkMigrationSaveEachAsAdded, _config.FilterWorkItemsThatAlreadyExistInTarget);
         }
 
         internal void TraceWriteLine(LogEventLevel level, string message, Dictionary<string, object> properties = null)
@@ -151,6 +153,15 @@ namespace VstsSyncMigrator.Engine
                 var sourceWorkItems = Engine.Source.WorkItems.GetWorkItems(sourceQuery);
                 contextLog.Information("Replay all revisions of {sourceWorkItemsCount} work items?",
                     sourceWorkItems.Count);
+
+                //////////////////////////////////////////////////
+                if (!_nodeStructureEnricher.ValidateTargetNodesExist(sourceWorkItems))
+                {
+                    if (_config.StopMigrationOnMissingAreaIterationNodes)
+                    {
+                        throw new Exception("Missing Iterations in Target preventing progress, check log for list. If you resolve with a FieldMap set StopMigrationOnMissingAreaIterationNodes = false in the config to continue.");
+                    }                    
+                }
                 //////////////////////////////////////////////////
                 contextLog.Information("Found target project as {@destProject}", Engine.Target.WorkItems.Project.Name);
                 //////////////////////////////////////////////////////////FilterCompletedByQuery
@@ -260,7 +271,7 @@ namespace VstsSyncMigrator.Engine
             var matches = Regex.Matches(targetWIQLQueryBit, RegexPatternForAreaAndIterationPathsFix);
 
 
-            if(string.IsNullOrWhiteSpace(sourceProject)
+            if (string.IsNullOrWhiteSpace(sourceProject)
                 || string.IsNullOrWhiteSpace(targetProject)
                 || sourceProject == targetProject)
             {
@@ -318,8 +329,16 @@ namespace VstsSyncMigrator.Engine
             }
             newWorkItemTimer.Stop();
             Telemetry.TrackDependency(new DependencyTelemetry("TfsObjectModel", Engine.Target.Config.AsTeamProjectConfig().Collection.ToString(), "NewWorkItem", null, newWorkItemstartTime, newWorkItemTimer.Elapsed, "200", true));
-            if (_config.UpdateCreatedBy) { newwit.Fields["System.CreatedBy"].Value = currentRevisionWorkItem.ToWorkItem().Revisions[0].Fields["System.CreatedBy"].Value; }
-            if (_config.UpdateCreatedDate) { newwit.Fields["System.CreatedDate"].Value = currentRevisionWorkItem.ToWorkItem().Revisions[0].Fields["System.CreatedDate"].Value; }
+            if (_config.UpdateCreatedBy)
+            {
+                newwit.Fields["System.CreatedBy"].Value = currentRevisionWorkItem.ToWorkItem().Revisions[0].Fields["System.CreatedBy"].Value;
+                workItemLog.Debug("Setting 'System.CreatedBy'={SystemCreatedBy}", currentRevisionWorkItem.ToWorkItem().Revisions[0].Fields["System.CreatedBy"].Value);
+            }
+            if (_config.UpdateCreatedDate)
+            {
+                newwit.Fields["System.CreatedDate"].Value = currentRevisionWorkItem.ToWorkItem().Revisions[0].Fields["System.CreatedDate"].Value;
+                workItemLog.Debug("Setting 'System.CreatedDate'={SystemCreatedDate}", currentRevisionWorkItem.ToWorkItem().Revisions[0].Fields["System.CreatedDate"].Value);
+            }
             return newwit.AsWorkItemData();
         }
 
@@ -371,7 +390,18 @@ namespace VstsSyncMigrator.Engine
 
             foreach (Field f in oldWorkItem.Fields)
             {
-                if (newWorkItem.Fields.Contains(f.ReferenceName) && !_ignore.Contains(f.ReferenceName) && (!newWorkItem.Fields[f.ReferenceName].IsChangedInRevision || newWorkItem.Fields[f.ReferenceName].IsEditable) && oldWorkItem.Fields[f.ReferenceName].Value != newWorkItem.Fields[f.ReferenceName].Value)
+                if (newWorkItem.Fields.Contains(f.ReferenceName) == false)
+                {
+                    var missedMigratedValue = oldWorkItem.Fields[f.ReferenceName].Value;
+                    if (missedMigratedValue != null && !string.Empty.Equals(missedMigratedValue))
+                    {
+                        Log.LogDebug("PopulateWorkItem:FieldUpdate: Missing field in target workitem, Source WorkItemId: {WorkitemId}, Field: {MissingField}, Value: {SourceValue}", oldWi.Id, f.ReferenceName, missedMigratedValue);
+                    }
+                    continue;
+                }
+                if (!_ignore.Contains(f.ReferenceName) &&
+                    (!newWorkItem.Fields[f.ReferenceName].IsChangedInRevision || newWorkItem.Fields[f.ReferenceName].IsEditable)
+                    && oldWorkItem.Fields[f.ReferenceName].Value != newWorkItem.Fields[f.ReferenceName].Value)
                 {
                     Log.LogDebug("PopulateWorkItem:FieldUpdate: {ReferenceName} | Old:{OldReferenceValue} New:{NewReferenceValue}", f.ReferenceName, oldWorkItem.Fields[f.ReferenceName].Value, newWorkItem.Fields[f.ReferenceName].Value);
                     newWorkItem.Fields[f.ReferenceName].Value = oldWorkItem.Fields[f.ReferenceName].Value;
@@ -575,16 +605,23 @@ namespace VstsSyncMigrator.Engine
         {
             try
             {
-                var skipToFinalRevisedWorkItemType = _config.SkipToFinalRevisedWorkItemType;
-                var finalDestType = revisionsToMigrate.Last().Type;
-
-                if (skipToFinalRevisedWorkItemType && Engine.TypeDefinitionMaps.Items.ContainsKey(finalDestType))
-                    finalDestType = Engine.TypeDefinitionMaps.Items[finalDestType].Map();
-
                 //If work item hasn't been created yet, create a shell
                 if (targetWorkItem == null)
                 {
+                    var skipToFinalRevisedWorkItemType = _config.SkipToFinalRevisedWorkItemType;
+                    var finalDestType = revisionsToMigrate.Last().Type;
                     var targetType = revisionsToMigrate.First().Type;
+
+                    if (targetType != finalDestType)
+                    {
+                        TraceWriteLine(LogEventLevel.Information, $"WorkItem has changed type at one of the revisions, from {targetType} to {finalDestType}");
+                    }
+
+                    if (skipToFinalRevisedWorkItemType && Engine.TypeDefinitionMaps.Items.ContainsKey(finalDestType))
+                    {
+                        finalDestType = Engine.TypeDefinitionMaps.Items[finalDestType].Map();
+                    }
+
                     if (Engine.TypeDefinitionMaps.Items.ContainsKey(targetType))
                     {
                         targetType = Engine.TypeDefinitionMaps.Items[targetType].Map();
@@ -610,19 +647,19 @@ namespace VstsSyncMigrator.Engine
                     var destType = currentRevisionWorkItem.Type;
                     if (Engine.TypeDefinitionMaps.Items.ContainsKey(destType))
                     {
-                        destType =
-                           Engine.TypeDefinitionMaps.Items[destType].Map();
+                        destType = Engine.TypeDefinitionMaps.Items[destType].Map();
                     }
 
                     PopulateWorkItem(currentRevisionWorkItem, targetWorkItem, destType);
+
+                    // Impersonate revision author. Mapping will apply later and may change this.
+                    targetWorkItem.ToWorkItem().Fields["System.ChangedBy"].Value = revision.Fields["System.ChangedBy"].Value.ToString();
+                    targetWorkItem.ToWorkItem().Fields["System.History"].Value = revision.Fields["System.History"].Value;
 
                     // Todo: Ensure all field maps use WorkItemData.Fields to apply a correct mapping
                     Engine.FieldMaps.ApplyFieldMappings(currentRevisionWorkItem, targetWorkItem);
 
                     // Todo: Think about an "UpdateChangedBy" flag as this is expensive! (2s/WI instead of 1,5s when writing "Migration")
-                    var changedBy = targetWorkItem.ToWorkItem().Fields["System.ChangedBy"].Value.ToString();
-                    targetWorkItem.ToWorkItem().Fields["System.ChangedBy"].Value = revision.Fields["System.ChangedBy"].Value;
-                    targetWorkItem.ToWorkItem().Fields["System.History"].Value = revision.Fields["System.History"].Value;
 
                     var reflectedUri = (TfsReflectedWorkItemId)Engine.Source.WorkItems.CreateReflectedWorkItemId(sourceWorkItem);
                     if (!targetWorkItem.ToWorkItem().Fields.Contains(Engine.Target.Config.AsTeamProjectConfig().ReflectedWorkItemIDFieldName))
@@ -639,7 +676,12 @@ namespace VstsSyncMigrator.Engine
                     ProcessHTMLFieldAttachements(targetWorkItem);
                     ProcessWorkItemEmbeddedLinks(sourceWorkItem, targetWorkItem);
 
-                    targetWorkItem.SaveToAzureDevOps();
+                    var skipRevision = SkipRevisionWithInvalidIterationPath(targetWorkItem);
+
+                    if (!skipRevision)
+                    {
+                        targetWorkItem.SaveToAzureDevOps();
+                    }
                     TraceWriteLine(LogEventLevel.Information,
                         " Saved TargetWorkItem {TargetWorkItemId}. Replayed revision {RevisionNumber} of {RevisionsToMigrateCount}",
                        new Dictionary<string, object>() {
@@ -647,16 +689,20 @@ namespace VstsSyncMigrator.Engine
                                {"RevisionNumber", revision.Number },
                                {"RevisionsToMigrateCount",  revisionsToMigrate.Count}
                            });
-
-                    // Change this back to the original value as this object is mutated, and this value is needed elsewhere.
-                    targetWorkItem.ToWorkItem().Fields["System.ChangedBy"].Value = changedBy;
                 }
+
+                // Until here we impersonate the maker of the revisions. From here we act as ourselves to push the attachments and add the comment
+                targetWorkItem.ToWorkItem().Fields["System.ChangedBy"].Value = "Migration";
 
                 if (targetWorkItem != null)
                 {
                     ProcessWorkItemAttachments(sourceWorkItem, targetWorkItem, false);
                     if (!string.IsNullOrEmpty(targetWorkItem.Id))
-                    { ProcessWorkItemLinks(Engine.Source.WorkItems, Engine.Target.WorkItems, sourceWorkItem, targetWorkItem); }
+                    {
+                        ProcessWorkItemLinks(Engine.Source.WorkItems, Engine.Target.WorkItems, sourceWorkItem, targetWorkItem);
+                        // The TFS client seems to plainly ignore the ChangedBy field when saving a link, so we need to put this back in place
+                        targetWorkItem.ToWorkItem().Fields["System.ChangedBy"].Value = "Migration";
+                    }
 
                     if (_config.GenerateMigrationComment)
                     {
@@ -692,6 +738,33 @@ namespace VstsSyncMigrator.Engine
             }
 
             return targetWorkItem;
+        }
+
+        private bool SkipRevisionWithInvalidIterationPath(WorkItemData targetWorkItemData)
+        {
+            if (!_config.SkipRevisionWithInvalidIterationPath)
+            {
+                return false;
+            }
+
+            var workItem = targetWorkItemData.ToWorkItem();
+            var invalidFields = workItem.Validate();
+
+            if (invalidFields.Count == 0)
+            {
+                return false;
+            }
+
+            foreach (Field invalidField in invalidFields)
+            {
+                // We cannot save a revision when it has no IterationPath
+                if (invalidField.ReferenceName == "System.IterationPath")
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }
