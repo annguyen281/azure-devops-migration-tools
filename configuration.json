@@ -4,8 +4,8 @@
   "workaroundForQuerySOAPBugEnabled": false,
   "Source": {
     "$type": "TfsTeamProjectConfig",
-    "Collection": "https://tfs.amaris.com/tfs/ITArchitecture",
-    "Project": "Gear",
+    "Collection": "https://tfs.amaris.com/tfs/ITOperations",
+    "Project": "System",
     "ReflectedWorkItemIDFieldName": "Custom.ReflectedWorkItemId",
     "AuthenticationMode": "Prompt",
     "AllowCrossProjectLinking": false,
@@ -18,7 +18,7 @@
   "Target": {
     "$type": "TfsTeamProjectConfig",
     "Collection": "https://dev.azure.com/mantu",
-    "Project": "Gear",
+    "Project": "IaC - System",
     "ReflectedWorkItemIDFieldName": "ReflectedWorkItemId",
     "AuthenticationMode": "Prompt",
     "AllowCrossProjectLinking": false,
@@ -29,6 +29,25 @@
     }
   },
   "FieldMaps": [
+    {
+      "$type": "FieldValueMapConfig",
+      "WorkItemTypeName": "*",
+      "sourceField": "System.AreaPath",
+      "targetField": "System.AreaPath",
+      "defaultValue": "TargetProg",
+      "valueMapping": {
+        "System": "IaC - System\\System"
+      }
+    },
+    {
+      "$type": "RegexFieldMapConfig",
+      "WorkItemTypeName": "*",
+      "sourceField": "System.IterationPath",
+      "targetField": "System.IterationPath",
+      //"pattern": "System\\\\Sprint [\\s\\S]+",
+      "pattern": "System*[\\s\\S]+",
+      "replacement": "Iac - System\\$&"
+    },
     {
       "$type": "TreeToTagMapConfig",
       "WorkItemTypeName": "*",
@@ -48,12 +67,6 @@
   },
   "GitRepoMapping": null,
   "Processors": [
-    {
-      "$type": "WorkItemDeleteConfig",
-      "Enabled": false,
-      "WIQLQueryBit": "AND [System.WorkItemType] NOT IN ('Test Suite', 'Test Plan')",
-      "WIQLOrderBit": "[System.ChangedDate] desc"
-    },
     //{
     //  "$type": "WorkItemMigrationConfig",
     //  "ReplayRevisions": true,
@@ -79,33 +92,41 @@
     //},
     {
       "$type": "WorkItemMigrationConfig",
-      "ReplayRevisions": true,
+      "ReplayRevisions": false,
       "PrefixProjectToNodes": false,
-      "UpdateCreatedDate": true,
-      "UpdateCreatedBy": true,
+      "UpdateCreatedDate": false,
+      "UpdateCreatedBy": false,
       "BuildFieldTable": false,
       "AppendMigrationToolSignatureFooter": false,
-      "WIQLQueryBit": "AND [System.WorkItemType] NOT IN ('Test Suite', 'Test Plan') AND [System.State] CONTAINS 'Closed'",
+      "WIQLQueryBit": "AND [System.WorkItemType] NOT IN ('Test Suite', 'Test Plan') AND [System.CreatedDate] >= '1/1/2022'",
+      //"WIQLQueryBit": "AND [System.WorkItemType] IN ('Feature')",
       "WIQLOrderBit": "[System.ChangedDate] desc",
       "Enabled": true,
       "LinkMigration": true,
       "AttachmentMigration": true,
       "AttachmentWorkingPath": "c:\\temp\\WorkItemAttachmentWorkingFolder\\",
       "FixHtmlAttachmentLinks": false,
-      "SkipToFinalRevisedWorkItemType": true,
+      "SkipToFinalRevisedWorkItemType": false,
       "WorkItemCreateRetryLimit": 5,
-      "FilterWorkItemsThatAlreadyExistInTarget": false,
+      "FilterWorkItemsThatAlreadyExistInTarget": true,
       "PauseAfterEachWorkItem": false,
       "AttachmentMaxSize": 480000000,
       "CollapseRevisions": false,
       "LinkMigrationSaveEachAsAdded": true,
       "NodeStructureEnricherEnabled": true,
       "UseCommonNodeStructureEnricherConfig": false,
-      "GenerateMigrationComment": false
+      "GenerateMigrationComment": false,
+      "NodeBasePaths": [ "", "Sprint" ],
+      "IterationMaps": {
+        "^System(?=\\\\Sprint )": "IaC - System\\System"
+      },
+      "AreaMaps": {
+        "^System\\\\(?!DescopeThis|DescopeThat)": "IaC - System\\System\\"
+      }
     },
     {
       "$type": "TfsTeamSettingsProcessorOptions",
-      "Enabled": true,
+      "Enabled": false,
       "MigrateTeamSettings": true,
       "UpdateTeamSettings": true,
       "MigrateTeamCapacities": false,
